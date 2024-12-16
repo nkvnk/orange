@@ -208,7 +208,6 @@ export default function CounterPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-xl mx-auto px-6 py-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8">Counter</h1>
         <Tabs defaultValue="battery" className="space-y-8">
           <TabsList className="grid w-full grid-cols-2 h-14 bg-gray-100 p-1.5 rounded-lg">
             <TabsTrigger
@@ -251,9 +250,9 @@ export default function CounterPage() {
         <div className="mt-12">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="w-full py-4 bg-emerald-600  text-white rounded-3xl font-extrabold text-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors"
+            className="w-full py-4 bg-emerald-600  text-white rounded-3xl  hover:bg-emerald-700 active:bg-emerald-800 transition-colors"
           >
-            <div className="font-black text-lg">完了</div>
+            <div className="font-black font-mono text-xl">完了</div>
           </button>
         </div>
 
