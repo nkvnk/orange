@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -153,8 +153,8 @@ const CounterSection: React.FC<CounterSectionProps> = ({
 };
 
 export default function CounterPage() {
-  const [batteryItems] = useState<string>(["イン", "ドア", "アプ", "アポ"]);
-  const [zehItems] = useState<string>(["イン", "ドア", "アプ", "アポ"]);
+  const [batteryItems] = useState<string[]>(["イン", "ドア", "アプ", "アポ"]);
+  const [zehItems] = useState<string[]>(["イン", "ドア", "アプ", "アポ"]);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
   // カウント状態
