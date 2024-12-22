@@ -9,7 +9,6 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { User } from "@supabase/supabase-js";
 
-// UserContextTypeの型を明確に定義
 interface UserContextType {
   user: User | null;
   setUser: (user: User | null) => void;
