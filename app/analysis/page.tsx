@@ -5,6 +5,8 @@ import { CircleArrowDown } from "lucide-react";
 //import SimpleSalesMetrics from "@/components/dashboard/SalesDetailView";
 import { GoalMetrics } from "@/components/dashbords/MiniGoal";
 import SimpleSalesMetrics from "@/components/dashbords/Detail";
+import LogoutButton from "@/components/LogoutButton";
+import { useUser } from "@/context/UserContext";
 interface Metric {
   label: string;
   value: number;
@@ -29,6 +31,11 @@ const MetricRow: React.FC<MetricRowProps> = ({ label, value }) => (
 export default function Page() {
   const [isBatteryExpanded, setIsBatteryExpanded] = useState<boolean>(false);
   const [isZehExpanded, setIsZehExpanded] = useState<boolean>(false);
+  const user = useUser();
+  useEffect(() => {
+    console.log("userのみ", user); // ユーザー情報をコンソールに表示
+    console.log("user emailのみで", user?.user?.email);
+  }, [user]);
 
   const batteryMetrics: Metric[] = [
     {
@@ -80,10 +87,8 @@ export default function Page() {
           <h1 className="text-3xl font-extrabold text-gray-900">Dashboard</h1>
         </div>
         <h2 className="text-2xl font-extrabold text-gray-900">Daily Metrics</h2>
-
         {/* Metric Cards Grid */}
         <GoalMetrics />
-
         <section className="bg-white rounded-xl w-full">
           {/* Battery Index */}
           <div className="px-8 py-2 border-gray-100 w-full">
@@ -145,11 +150,12 @@ export default function Page() {
             )}
           </div>
         </section>
-
         <h2 className="text-2xl font-extrabold text-gray-900">
           Sustained Metrics
         </h2>
         <SimpleSalesMetrics />
+        <LogoutButton />
+        <div>{user && <p>Welcome, {user?.user?.email}</p>}</div>
       </div>
     </main>
   );
