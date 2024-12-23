@@ -12,21 +12,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
+import { supabase } from "@/lib/supabaseClient";
+import { useUser } from "@/context/UserContext";
+import {
+  CountRecord,
+  CountHistoryRecord,
+  CountState,
+  LocalCountHistory,
+} from "@/types";
 // タイプ定義
-type CountRecord = {
-  value: number;
-  timestamp: string;
-  type: string;
-};
-
-type CountHistory = {
-  [key: string]: CountRecord[];
-};
-
-type CountState = {
-  [key: string]: number;
-};
 
 // ローカルストレージユーティリティ
 const STORAGE_KEY = "counterData";
@@ -57,8 +51,8 @@ type CounterSectionProps = {
   counts: CountState;
   setCounts: React.Dispatch<React.SetStateAction<CountState>>;
   type: string;
-  countHistory: CountHistory;
-  setCountHistory: React.Dispatch<React.SetStateAction<CountHistory>>;
+  countHistory: LocalCountHistory;
+  setCountHistory: React.Dispatch<React.SetStateAction<LocalCountHistory>>;
 };
 
 const CounterSection: React.FC<CounterSectionProps> = ({
@@ -69,7 +63,11 @@ const CounterSection: React.FC<CounterSectionProps> = ({
   countHistory,
   setCountHistory,
 }) => {
-  const handleCount = (item: string, newCount: number) => {
+  const { user } = useUser();
+
+  const handleCount = async (item: string, newCount: number) => {
+    if (!user) return;
+
     const timestamp = new Date().toISOString();
 
     // カウント値を更新
@@ -93,27 +91,34 @@ const CounterSection: React.FC<CounterSectionProps> = ({
     };
     setCountHistory(updatedHistory);
 
-    // ローカルストレージに保存
-    const storedData = getStoredData() || {};
-    const newStoredData = {
-      ...storedData,
-      [type]: {
-        counts: updatedCounts,
-        history: updatedHistory,
-      },
-    };
-    storeData(newStoredData);
+    try {
+      // Supabaseに履歴を保存
+      const { error: historyError } = await supabase
+        .from("count_historys")
+        .insert({
+          user_id: user.id,
+          count_type: type,
+          item_name: item,
+          count_value: newCount,
+          created_at: timestamp,
+        });
 
-    // コンソールログ出力
-    console.group("カウント操作");
-    console.log("操作時刻:", new Date(timestamp).toLocaleString("ja-JP"));
-    console.log("種別:", type);
-    console.log("項目:", item);
-    console.log("カウント値:", newCount);
-    console.log(`${type}の全カウント:`, updatedCounts);
-    console.log(`${item}の履歴:`, updatedHistory[item]);
-    console.log("LocalStorage データ:", newStoredData);
-    console.groupEnd();
+      if (historyError) throw historyError;
+
+      // ローカルストレージに保存
+      const storedData = getStoredData() || {};
+      const newStoredData = {
+        ...storedData,
+        [type]: {
+          counts: updatedCounts,
+          history: updatedHistory,
+        },
+      };
+      storeData(newStoredData);
+    } catch (error) {
+      console.error("データ保存エラー:", error);
+      alert("データの保存に失敗しました");
+    }
   };
 
   return (
@@ -175,34 +180,104 @@ export default function CounterPage() {
   });
 
   // 履歴状態
-  const [batteryHistory, setBatteryHistory] = useState<CountHistory>(() => {
-    const storedData = getStoredData();
-    return storedData?.battery?.history || {};
-  });
+  const [batteryHistory, setBatteryHistory] = useState<LocalCountHistory>(
+    () => {
+      const storedData = getStoredData();
+      return storedData?.battery?.history || {};
+    }
+  );
 
-  const [zehHistory, setZehHistory] = useState<CountHistory>(() => {
+  const [zehHistory, setZehHistory] = useState<LocalCountHistory>(() => {
     const storedData = getStoredData();
     return storedData?.zeh?.history || {};
   });
 
-  const handleComplete = () => {
-    // リセット処理
-    const resetCounts = Object.fromEntries(
-      batteryItems.map((item) => [item, 0])
-    );
+  const { user } = useUser();
 
-    setBatteryCounts(resetCounts);
-    setZehCounts(resetCounts);
-    setBatteryHistory({});
-    setZehHistory({});
+  const handleComplete = async () => {
+    if (!user) {
+      alert("ログインが必要です");
+      return;
+    }
 
-    storeData({
-      battery: { counts: resetCounts, history: {} },
-      zeh: { counts: resetCounts, history: {} },
-    });
+    try {
+      // バッテリーとZEHのカウントをそれぞれ保存
+      const batteryRecord: Omit<CountRecord, "id"> = {
+        user_id: user.id,
+        count_type: "battery",
+        in_count: batteryCounts["イン"] || 0,
+        door_count: batteryCounts["ドア"] || 0,
+        app_count: batteryCounts["アプ"] || 0,
+        apo_count: batteryCounts["アポ"] || 0,
+        created_at: new Date().toISOString(),
+      };
 
-    alert("データをリセットしました");
-    setIsModalOpen(false);
+      const zehRecord: Omit<CountRecord, "id"> = {
+        user_id: user.id,
+        count_type: "zeh",
+        in_count: zehCounts["イン"] || 0,
+        door_count: zehCounts["ドア"] || 0,
+        app_count: zehCounts["アプ"] || 0,
+        apo_count: zehCounts["アポ"] || 0,
+        created_at: new Date().toISOString(),
+      };
+
+      // Supabaseにデータを保存
+      const [batteryResult, zehResult] = await Promise.all([
+        supabase.from("count_records").insert(batteryRecord),
+        supabase.from("count_records").insert(zehRecord),
+      ]);
+
+      if (batteryResult.error) throw batteryResult.error;
+      if (zehResult.error) throw zehResult.error;
+      //バックエンドに送ってデータの計算を行う
+      //一日のデータ格納
+      const { error: calcError } = await supabase.rpc(
+        "calculate_daily_totals",
+        {
+          p_user_id: user.id,
+        }
+      );
+      //今までのデータを格納するためのコード
+      await handleCalculationForUser(user.id);
+
+      // リセット処理
+      const resetCounts = Object.fromEntries(
+        batteryItems.map((item) => [item, 0])
+      );
+
+      setBatteryCounts(resetCounts);
+      setZehCounts(resetCounts);
+      setBatteryHistory({});
+      setZehHistory({});
+
+      storeData({
+        battery: { counts: resetCounts, history: {} },
+        zeh: { counts: resetCounts, history: {} },
+      });
+
+      alert("データを保存し、カウントをリセットしました");
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("完了処理エラー:", error);
+      alert("データの保存に失敗しました");
+    }
+  };
+  const handleCalculationForUser = async (userId: string) => {
+    try {
+      const { error } = await supabase.rpc(
+        "calculate_and_save_counts_for_user",
+        {
+          p_user_id: userId,
+        }
+      );
+      if (error) throw error;
+
+      alert("ユーザーごとの集計が完了しました！");
+    } catch (error) {
+      console.error("集計エラー:", error);
+      alert("集計に失敗しました。");
+    }
   };
 
   return (
@@ -250,7 +325,7 @@ export default function CounterPage() {
         <div className="mt-12">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="w-full py-4 bg-emerald-600  text-white rounded-3xl  hover:bg-emerald-700 active:bg-emerald-800 transition-colors"
+            className="w-full py-4 bg-emerald-600 text-white rounded-3xl hover:bg-emerald-700 active:bg-emerald-800 transition-colors"
           >
             <div className="font-black font-mono text-xl">完了</div>
           </button>
@@ -272,7 +347,9 @@ export default function CounterPage() {
                 戻る
               </AlertDialogCancel>
               <AlertDialogAction
-                onClick={handleComplete}
+                onClick={async () => {
+                  await handleComplete();
+                }}
                 className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-base font-medium"
               >
                 はい

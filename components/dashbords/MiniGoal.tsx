@@ -1,7 +1,6 @@
 "use client";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, TrendingDown } from "lucide-react";
-
 export const GoalMetrics = () => {
   // 目標データと実績データを事前に定義
   const goals = {

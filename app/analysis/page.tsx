@@ -11,7 +11,6 @@ interface Metric {
   label: string;
   value: number;
 }
-
 interface MetricRowProps {
   label: string;
   value: number;

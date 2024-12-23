@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -12,10 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { FaGoogle, FaGithub } from "react-icons/fa";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import { UserPlus } from "lucide-react";
 export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
